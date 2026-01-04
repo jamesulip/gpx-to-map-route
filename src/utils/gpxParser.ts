@@ -1,3 +1,8 @@
+/**
+ * GPX Parser Utilities
+ * @deprecated Use composables/useGpxLoader.ts instead
+ */
+
 import { gpx } from '@tmcw/togeojson';
 
 export interface GpsPoint {
@@ -7,6 +12,9 @@ export interface GpsPoint {
   time?: string;
 }
 
+/**
+ * @deprecated Use useGpxLoader().loadGpxFile() instead
+ */
 export async function parseGpxFile(gpxUrl: string): Promise<GpsPoint[]> {
   const response = await fetch(gpxUrl);
   const gpxText = await response.text();
@@ -33,7 +41,10 @@ export async function parseGpxFile(gpxUrl: string): Promise<GpsPoint[]> {
   return points;
 }
 
-// Interpolate between two points for smooth animation
+/**
+ * Interpolate between two GPS points
+ * @deprecated Use interpolatePoint from composables/useGpxLoader.ts instead
+ */
 export function interpolatePoint(
   point1: GpsPoint | undefined,
   point2: GpsPoint | undefined,

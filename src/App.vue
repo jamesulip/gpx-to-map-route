@@ -3,28 +3,38 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useGpxAnimation, useMapbox, TrackingMode } from './composables';
 
+// ============================================
+// Configuration
+// ============================================
+
 const MAPBOX_ACCESS_TOKEN = 'REMOVED';
 const GPX_FILE_URL = '/Morning_Hike.gpx';
 const INITIAL_CENTER: [number, number] = [121.093642, 13.376087];
 
+// ============================================
+// Refs
+// ============================================
+
 const mapContainer = ref<HTMLElement | null>(null);
-const routeBounds = ref<[[number, number], [number, number]] | null>(null);
-const startingCoord = ref<[number, number] | null>(null);
 const selectedTrackingMode = ref<TrackingMode>(TrackingMode.ACTIVE_TRACK_TRACE);
 
-// Initialize composables
+// ============================================
+// Composables
+// ============================================
+
 const {
   isAnimating,
   animationProgress,
-  gpsPoints,
+  hasData,
   currentPoint,
+  bounds,
+  routeCoordinates,
   loadGpxFile,
   createRouteGeoJson,
   startAnimation: startGpxAnimation,
   pauseAnimation,
   resetAnimation,
   cleanup: cleanupAnimation,
-
 } = useGpxAnimation();
 
 const {
@@ -32,18 +42,19 @@ const {
   addRouteLayer,
   addMarkerLayer,
   updateMarkerPosition,
-  flyTo,
   setCamera,
   animateToTopView,
   animateToStartingView,
-
   cleanup: cleanupMap,
 } = useMapbox(mapContainer, {
   accessToken: MAPBOX_ACCESS_TOKEN,
   center: INITIAL_CENTER,
 });
 
-// Handle animation frame updates
+// ============================================
+// Animation Handlers
+// ============================================
+
 function handleAnimationFrame(camera: { center: [number, number]; bearing: number }) {
   if (currentPoint.value) {
     updateMarkerPosition('marker-source', [
@@ -54,41 +65,29 @@ function handleAnimationFrame(camera: { center: [number, number]; bearing: numbe
   setCamera(camera.center, camera.bearing);
 }
 
-function startAnimation() {
-  animateToTopView(routeBounds.value).then(() => {
-    animateToStartingView(startingCoord.value || [0, 0]).then(() => {
-      startGpxAnimation(selectedTrackingMode.value, handleAnimationFrame);
-    });
-  });
+async function startAnimation() {
+  if (!bounds.value || !routeCoordinates.value[0]) return;
+
+  await animateToTopView(bounds.value);
+  await animateToStartingView(routeCoordinates.value[0]);
+  startGpxAnimation(selectedTrackingMode.value, handleAnimationFrame);
 }
+
+// ============================================
+// Route Initialization
+// ============================================
 
 async function initializeRoute() {
   try {
     const analysis = await loadGpxFile(GPX_FILE_URL);
 
     if (analysis.coordinates.length > 0) {
-      // Store bounds and starting position
-      routeBounds.value = analysis.bounds;
-      startingCoord.value = analysis.coordinates[0] || null;
-
-      // Add route layer with original GPS coordinates
       addRouteLayer('route-source', createRouteGeoJson());
+      await animateToTopView(analysis.bounds);
 
-      // Calculate center of the route
-      const coords = analysis.coordinates;
-      // const center: [number, number] = [
-      //   (Math.min(...coords.map((c) => c[0])) + Math.max(...coords.map((c) => c[0]))) / 2,
-      //   (Math.min(...coords.map((c) => c[1])) + Math.max(...coords.map((c) => c[1]))) / 2,
-      // ];
-
-      // flyTo({ center, zoom: 13 });
-      animateToTopView(analysis.bounds);
-
-      // Add marker at start position
-      const firstCoord = coords[0];
+      const firstCoord = analysis.coordinates[0];
       if (firstCoord) {
-        const startCoord: [number, number] = [firstCoord[0], firstCoord[1]];
-        addMarkerLayer('marker-source', startCoord);
+        addMarkerLayer('marker-source', firstCoord);
       }
     }
   } catch (err) {
@@ -96,21 +95,29 @@ async function initializeRoute() {
   }
 }
 
+// ============================================
+// View Controls
+// ============================================
+
 function showTopView() {
-  if (routeBounds.value) {
-    animateToTopView(routeBounds.value);
+  if (bounds.value) {
+    animateToTopView(bounds.value);
   }
 }
 
 function showStartingView() {
-  if (startingCoord.value) {
-    animateToStartingView(startingCoord.value);
+  const startCoord = routeCoordinates.value[0];
+  if (startCoord) {
+    animateToStartingView(startCoord);
   }
 }
 
+// ============================================
+// Lifecycle
+// ============================================
+
 onMounted(() => {
   initializeMap();
-
   // Wait for map to be ready before loading route
   setTimeout(initializeRoute, 1000);
 });
@@ -143,7 +150,7 @@ onUnmounted(() => {
       z-index: 1000;
     ">
       <!-- Play/Pause Controls -->
-      <button @click="startAnimation" :disabled="isAnimating || gpsPoints.length === 0" :style="{
+      <button @click="startAnimation" :disabled="isAnimating || !hasData" :style="{
         padding: '8px 16px',
         backgroundColor: '#00BFFF',
         color: 'white',
@@ -151,7 +158,7 @@ onUnmounted(() => {
         borderRadius: '4px',
         cursor: 'pointer',
         fontWeight: '500',
-        opacity: isAnimating || gpsPoints.length === 0 ? 0.5 : 1,
+        opacity: isAnimating || !hasData ? 0.5 : 1,
       }">
         ▶ Play
       </button>
@@ -186,7 +193,7 @@ onUnmounted(() => {
       <!-- Tracking Mode Buttons -->
       <button 
         @click="selectedTrackingMode = TrackingMode.ACTIVE_TRACK_TRACE" 
-        :disabled="isAnimating || gpsPoints.length === 0"
+        :disabled="isAnimating || !hasData"
         :style="{
           padding: '8px 16px',
           backgroundColor: selectedTrackingMode === TrackingMode.ACTIVE_TRACK_TRACE ? '#FF9800' : '#BDBDBD',
@@ -195,14 +202,14 @@ onUnmounted(() => {
           borderRadius: '4px',
           cursor: 'pointer',
           fontWeight: '500',
-          opacity: isAnimating || gpsPoints.length === 0 ? 0.5 : 1,
+          opacity: isAnimating || !hasData ? 0.5 : 1,
         }">
         📍 Trace
       </button>
 
       <button 
         @click="selectedTrackingMode = TrackingMode.ACTIVE_TRACK_PARALLEL" 
-        :disabled="isAnimating || gpsPoints.length === 0"
+        :disabled="isAnimating || !hasData"
         :style="{
           padding: '8px 16px',
           backgroundColor: selectedTrackingMode === TrackingMode.ACTIVE_TRACK_PARALLEL ? '#FF9800' : '#BDBDBD',
@@ -211,14 +218,14 @@ onUnmounted(() => {
           borderRadius: '4px',
           cursor: 'pointer',
           fontWeight: '500',
-          opacity: isAnimating || gpsPoints.length === 0 ? 0.5 : 1,
+          opacity: isAnimating || !hasData ? 0.5 : 1,
         }">
         ↔ Parallel
       </button>
 
       <button 
         @click="selectedTrackingMode = TrackingMode.SPOTLIGHT" 
-        :disabled="isAnimating || gpsPoints.length === 0"
+        :disabled="isAnimating || !hasData"
         :style="{
           padding: '8px 16px',
           backgroundColor: selectedTrackingMode === TrackingMode.SPOTLIGHT ? '#FF9800' : '#BDBDBD',
@@ -227,14 +234,14 @@ onUnmounted(() => {
           borderRadius: '4px',
           cursor: 'pointer',
           fontWeight: '500',
-          opacity: isAnimating || gpsPoints.length === 0 ? 0.5 : 1,
+          opacity: isAnimating || !hasData ? 0.5 : 1,
         }">
         💡 Spotlight
       </button>
 
       <button 
         @click="selectedTrackingMode = TrackingMode.POINT_OF_INTEREST" 
-        :disabled="isAnimating || gpsPoints.length === 0"
+        :disabled="isAnimating || !hasData"
         :style="{
           padding: '8px 16px',
           backgroundColor: selectedTrackingMode === TrackingMode.POINT_OF_INTEREST ? '#FF9800' : '#BDBDBD',
@@ -243,14 +250,14 @@ onUnmounted(() => {
           borderRadius: '4px',
           cursor: 'pointer',
           fontWeight: '500',
-          opacity: isAnimating || gpsPoints.length === 0 ? 0.5 : 1,
+          opacity: isAnimating || !hasData ? 0.5 : 1,
         }">
         🎯 POI
       </button>
 
       <button 
         @click="selectedTrackingMode = TrackingMode.FIXED_OVERVIEW" 
-        :disabled="isAnimating || gpsPoints.length === 0"
+        :disabled="isAnimating || !hasData"
         :style="{
           padding: '8px 16px',
           backgroundColor: selectedTrackingMode === TrackingMode.FIXED_OVERVIEW ? '#FF9800' : '#BDBDBD',
@@ -259,14 +266,14 @@ onUnmounted(() => {
           borderRadius: '4px',
           cursor: 'pointer',
           fontWeight: '500',
-          opacity: isAnimating || gpsPoints.length === 0 ? 0.5 : 1,
+          opacity: isAnimating || !hasData ? 0.5 : 1,
         }">
         🔭 Overview
       </button>
 
       <div style="width: 1px; height: 24px; background-color: #ddd;"></div>
 
-      <button @click="showTopView" :disabled="!routeBounds" :style="{
+      <button @click="showTopView" :disabled="!bounds" :style="{
         padding: '8px 16px',
         backgroundColor: '#9C27B0',
         color: 'white',
@@ -274,12 +281,12 @@ onUnmounted(() => {
         borderRadius: '4px',
         cursor: 'pointer',
         fontWeight: '500',
-        opacity: !routeBounds ? 0.5 : 1,
+        opacity: !bounds ? 0.5 : 1,
       }">
         ⬆ Top View
       </button>
 
-      <button @click="showStartingView" :disabled="!startingCoord" :style="{
+      <button @click="showStartingView" :disabled="!hasData" :style="{
         padding: '8px 16px',
         backgroundColor: '#4CAF50',
         color: 'white',
@@ -287,7 +294,7 @@ onUnmounted(() => {
         borderRadius: '4px',
         cursor: 'pointer',
         fontWeight: '500',
-        opacity: !startingCoord ? 0.5 : 1,
+        opacity: !hasData ? 0.5 : 1,
       }">
         🏁 Start View
       </button>
