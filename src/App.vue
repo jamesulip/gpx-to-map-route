@@ -2,7 +2,10 @@
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useGpxAnimation, useMapbox, TrackingMode } from './composables';
-
+import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Progress } from '@/components/ui/progress'
+import { Play, Pause, RotateCcw, MapPin, ArrowLeftRight, Lightbulb, Target, Binoculars, ArrowUp, Flag } from 'lucide-vue-next'
 // ============================================
 // Configuration
 // ============================================
@@ -118,7 +121,6 @@ function showStartingView() {
 
 onMounted(() => {
   initializeMap();
-  // Wait for map to be ready before loading route
   setTimeout(initializeRoute, 1000);
 });
 
@@ -131,7 +133,7 @@ onUnmounted(() => {
 <template>
   <div style="position: relative; height: 100vh; width: 100%;">
     <div ref="mapContainer" style="height: 100%; width: 100%;"></div>
-
+    
     <!-- Animation Controls -->
     <div style="
       position: absolute;
@@ -139,188 +141,80 @@ onUnmounted(() => {
       left: 50%;
       transform: translateX(-50%);
       background: rgba(255, 255, 255, 0.95);
-      padding: 15px 25px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       display: flex;
-      gap: 10px;
+      gap: 15px;
       align-items: center;
       flex-wrap: wrap;
       max-width: 90vw;
       z-index: 1000;
+      border: 1px solid rgba(0, 0, 0, 0.05);
     ">
       <!-- Play/Pause Controls -->
-      <button @click="startAnimation" :disabled="isAnimating || !hasData" :style="{
-        padding: '8px 16px',
-        backgroundColor: '#00BFFF',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontWeight: '500',
-        opacity: isAnimating || !hasData ? 0.5 : 1,
-      }">
-        ▶ Play
-      </button>
+      <Button @click="startAnimation" :disabled="isAnimating || !hasData" size="sm">
+        <Play class="w-4 h-4 mr-2" />
+        Play
+      </Button>
 
-      <button @click="pauseAnimation" :disabled="!isAnimating" :style="{
-        padding: '8px 16px',
-        backgroundColor: '#FF6B35',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontWeight: '500',
-        opacity: !isAnimating ? 0.5 : 1,
-      }">
-        ⏸ Pause
-      </button>
+      <Button @click="pauseAnimation" :disabled="!isAnimating" variant="outline" size="sm">
+        <Pause class="w-4 h-4 mr-2" />
+        Pause
+      </Button>
 
-      <button @click="resetAnimation" style="
-          padding: 8px 16px;
-          background-color: #888;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-weight: 500;
-        ">
-        ⟲ Reset
-      </button>
+      <Button @click="resetAnimation" variant="secondary" size="sm">
+        <RotateCcw class="w-4 h-4 mr-2" />
+        Reset
+      </Button>
 
-      <div style="width: 1px; height: 24px; background-color: #ddd;"></div>
+      <div style="width: 1px; height: 24px; background-color: #e0e0e0;"></div>
 
-      <!-- Tracking Mode Buttons -->
-      <button 
-        @click="selectedTrackingMode = TrackingMode.ACTIVE_TRACK_TRACE" 
-        :disabled="isAnimating || !hasData"
-        :style="{
-          padding: '8px 16px',
-          backgroundColor: selectedTrackingMode === TrackingMode.ACTIVE_TRACK_TRACE ? '#FF9800' : '#BDBDBD',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '500',
-          opacity: isAnimating || !hasData ? 0.5 : 1,
-        }">
-        📍 Trace
-      </button>
+      <!-- Tracking Mode Toggle Group -->
+      <ToggleGroup type="single" :value="selectedTrackingMode" @update:value="selectedTrackingMode = $event" size="sm" :disabled="isAnimating || !hasData">
+        <ToggleGroupItem :value="TrackingMode.ACTIVE_TRACK_TRACE" aria-label="Trace mode">
+          <MapPin class="w-4 h-4 mr-2" />
+          Trace
+        </ToggleGroupItem>
+        <ToggleGroupItem :value="TrackingMode.ACTIVE_TRACK_PARALLEL" aria-label="Parallel mode">
+          <ArrowLeftRight class="w-4 h-4 mr-2" />
+          Parallel
+        </ToggleGroupItem>
+        <ToggleGroupItem :value="TrackingMode.SPOTLIGHT" aria-label="Spotlight mode">
+          <Lightbulb class="w-4 h-4 mr-2" />
+          Spotlight
+        </ToggleGroupItem>
+        <ToggleGroupItem :value="TrackingMode.POINT_OF_INTEREST" aria-label="POI mode">
+          <Target class="w-4 h-4 mr-2" />
+          POI
+        </ToggleGroupItem>
+        <ToggleGroupItem :value="TrackingMode.FIXED_OVERVIEW" aria-label="Overview mode">
+          <Binoculars class="w-4 h-4 mr-2" />
+          Overview
+        </ToggleGroupItem>
+      </ToggleGroup>
 
-      <button 
-        @click="selectedTrackingMode = TrackingMode.ACTIVE_TRACK_PARALLEL" 
-        :disabled="isAnimating || !hasData"
-        :style="{
-          padding: '8px 16px',
-          backgroundColor: selectedTrackingMode === TrackingMode.ACTIVE_TRACK_PARALLEL ? '#FF9800' : '#BDBDBD',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '500',
-          opacity: isAnimating || !hasData ? 0.5 : 1,
-        }">
-        ↔ Parallel
-      </button>
+      <div style="width: 1px; height: 24px; background-color: #e0e0e0;"></div>
 
-      <button 
-        @click="selectedTrackingMode = TrackingMode.SPOTLIGHT" 
-        :disabled="isAnimating || !hasData"
-        :style="{
-          padding: '8px 16px',
-          backgroundColor: selectedTrackingMode === TrackingMode.SPOTLIGHT ? '#FF9800' : '#BDBDBD',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '500',
-          opacity: isAnimating || !hasData ? 0.5 : 1,
-        }">
-        💡 Spotlight
-      </button>
+      <Button @click="showTopView" :disabled="!bounds" variant="secondary" size="sm">
+        <ArrowUp class="w-4 h-4 mr-2" />
+        Top View
+      </Button>
 
-      <button 
-        @click="selectedTrackingMode = TrackingMode.POINT_OF_INTEREST" 
-        :disabled="isAnimating || !hasData"
-        :style="{
-          padding: '8px 16px',
-          backgroundColor: selectedTrackingMode === TrackingMode.POINT_OF_INTEREST ? '#FF9800' : '#BDBDBD',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '500',
-          opacity: isAnimating || !hasData ? 0.5 : 1,
-        }">
-        🎯 POI
-      </button>
-
-      <button 
-        @click="selectedTrackingMode = TrackingMode.FIXED_OVERVIEW" 
-        :disabled="isAnimating || !hasData"
-        :style="{
-          padding: '8px 16px',
-          backgroundColor: selectedTrackingMode === TrackingMode.FIXED_OVERVIEW ? '#FF9800' : '#BDBDBD',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: '500',
-          opacity: isAnimating || !hasData ? 0.5 : 1,
-        }">
-        🔭 Overview
-      </button>
-
-      <div style="width: 1px; height: 24px; background-color: #ddd;"></div>
-
-      <button @click="showTopView" :disabled="!bounds" :style="{
-        padding: '8px 16px',
-        backgroundColor: '#9C27B0',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontWeight: '500',
-        opacity: !bounds ? 0.5 : 1,
-      }">
-        ⬆ Top View
-      </button>
-
-      <button @click="showStartingView" :disabled="!hasData" :style="{
-        padding: '8px 16px',
-        backgroundColor: '#4CAF50',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontWeight: '500',
-        opacity: !hasData ? 0.5 : 1,
-      }">
-        🏁 Start View
-      </button>
+      <Button @click="showStartingView" :disabled="!hasData" variant="secondary" size="sm">
+        <Flag class="w-4 h-4 mr-2" />
+        Start View
+      </Button>
 
       <!-- Progress bar -->
-      <div style="
-        flex: 1;
-        min-width: 200px;
-        height: 6px;
-        background-color: #ddd;
-        border-radius: 3px;
-        overflow: hidden;
-      ">
-        <div :style="{
-          height: '100%',
-          backgroundColor: '#00BFFF',
-          width: '100%',
-          transform: `scaleX(${animationProgress})`,
-          transformOrigin: 'left',
-          transition: 'transform 0.05s linear',
-        }"></div>
+      <div style="flex: 1; min-width: 150px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <Progress :model-value="animationProgress * 100" class="flex-1" style="min-width: 120px;" />
+          <span style="font-size: 12px; color: #666; min-width: 40px; text-align: right;">
+            {{ Math.round(animationProgress * 100) }}%
+          </span>
+        </div>
       </div>
-
-      <span style="font-size: 12px; color: #666; min-width: 50px;">
-        {{ Math.round(animationProgress * 100) }}%
-      </span>
     </div>
   </div>
 </template>
