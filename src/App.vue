@@ -1,220 +1,152 @@
 <script setup lang="ts">
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useGpxAnimation, useMapbox, TrackingMode } from './composables';
-import { Button } from '@/components/ui/button'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Progress } from '@/components/ui/progress'
-import { Play, Pause, RotateCcw, MapPin, ArrowLeftRight, Lightbulb, Target, Binoculars, ArrowUp, Flag } from 'lucide-vue-next'
-// ============================================
-// Configuration
-// ============================================
+import { RouterView, RouterLink, useRoute } from 'vue-router';
+import {
+  MapPin,
+  Clapperboard,
+  Map,
+  Settings,
+  HelpCircle,
+  FileVideo,
+  Route as RouteIcon,
+  Mountain,
+} from 'lucide-vue-next';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
-const MAPBOX_ACCESS_TOKEN = 'REMOVED';
-const GPX_FILE_URL = '/Morning_Hike.gpx';
-const INITIAL_CENTER: [number, number] = [121.093642, 13.376087];
+const route = useRoute();
 
-// ============================================
-// Refs
-// ============================================
+// Navigation items with nested structure
+const navItems = [
+  {
+    title: 'Animation',
+    icon: FileVideo,
+    items: [
+      {
+        title: 'Basic Animation',
+        url: '/',
+        icon: MapPin,
+      },
+      {
+        title: 'Keyframe Animation',
+        url: '/keyframe',
+        icon: Clapperboard,
+      },
+    ],
+  },
+  {
+    title: 'Map Tools',
+    icon: Map,
+    items: [
+      {
+        title: 'Route Viewer',
+        url: '#',
+        icon: RouteIcon,
+      },
+      {
+        title: 'Elevation Profile',
+        url: '#',
+        icon: Mountain,
+      },
+    ],
+  },
+];
 
-const mapContainer = ref<HTMLElement | null>(null);
-const selectedTrackingMode = ref<TrackingMode>(TrackingMode.ACTIVE_TRACK_TRACE);
-
-// ============================================
-// Composables
-// ============================================
-
-const {
-  isAnimating,
-  animationProgress,
-  hasData,
-  currentPoint,
-  bounds,
-  routeCoordinates,
-  loadGpxFile,
-  createRouteGeoJson,
-  startAnimation: startGpxAnimation,
-  pauseAnimation,
-  resetAnimation,
-  cleanup: cleanupAnimation,
-} = useGpxAnimation();
-
-const {
-  initializeMap,
-  addRouteLayer,
-  addMarkerLayer,
-  updateMarkerPosition,
-  setCamera,
-  animateToTopView,
-  animateToStartingView,
-  cleanup: cleanupMap,
-} = useMapbox(mapContainer, {
-  accessToken: MAPBOX_ACCESS_TOKEN,
-  center: INITIAL_CENTER,
-});
-
-// ============================================
-// Animation Handlers
-// ============================================
-
-function handleAnimationFrame(camera: { center: [number, number]; bearing: number }) {
-  if (currentPoint.value) {
-    updateMarkerPosition('marker-source', [
-      currentPoint.value.longitude,
-      currentPoint.value.latitude,
-    ]);
-  }
-  setCamera(camera.center, camera.bearing);
-}
-
-async function startAnimation() {
-  if (!bounds.value || !routeCoordinates.value[0]) return;
-
-  await animateToTopView(bounds.value);
-  await animateToStartingView(routeCoordinates.value[0]);
-  startGpxAnimation(selectedTrackingMode.value, handleAnimationFrame);
-}
-
-// ============================================
-// Route Initialization
-// ============================================
-
-async function initializeRoute() {
-  try {
-    const analysis = await loadGpxFile(GPX_FILE_URL);
-
-    if (analysis.coordinates.length > 0) {
-      addRouteLayer('route-source', createRouteGeoJson());
-      await animateToTopView(analysis.bounds);
-
-      const firstCoord = analysis.coordinates[0];
-      if (firstCoord) {
-        addMarkerLayer('marker-source', firstCoord);
-      }
-    }
-  } catch (err) {
-    console.error('Error loading GPX:', err);
-  }
-}
-
-// ============================================
-// View Controls
-// ============================================
-
-function showTopView() {
-  if (bounds.value) {
-    animateToTopView(bounds.value);
-  }
-}
-
-function showStartingView() {
-  const startCoord = routeCoordinates.value[0];
-  if (startCoord) {
-    animateToStartingView(startCoord);
-  }
-}
-
-// ============================================
-// Lifecycle
-// ============================================
-
-onMounted(() => {
-  initializeMap();
-  setTimeout(initializeRoute, 1000);
-});
-
-onUnmounted(() => {
-  cleanupAnimation();
-  cleanupMap();
-});
+const isActiveRoute = (url: string) => {
+  return route.path === url;
+};
 </script>
 
 <template>
-  <div style="position: relative; height: 100vh; width: 100%;">
-    <div ref="mapContainer" style="height: 100%; width: 100%;"></div>
-    
-    <!-- Animation Controls -->
-    <div style="
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.95);
-      padding: 20px 25px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      display: flex;
-      gap: 15px;
-      align-items: center;
-      flex-wrap: wrap;
-      max-width: 90vw;
-      z-index: 1000;
-      border: 1px solid rgba(0, 0, 0, 0.05);
-    ">
-      <!-- Play/Pause Controls -->
-      <Button @click="startAnimation" :disabled="isAnimating || !hasData" size="sm">
-        <Play class="w-4 h-4 mr-2" />
-        Play
-      </Button>
+  <SidebarProvider>
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" as-child>
+              <RouterLink to="/">
+                <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Map class="size-4" />
+                </div>
+                <div class="grid flex-1 text-left text-sm leading-tight">
+                  <span class="truncate font-semibold">GPX Animation</span>
+                  <span class="truncate text-xs">Route Visualizer</span>
+                </div>
+              </RouterLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-      <Button @click="pauseAnimation" :disabled="!isAnimating" variant="outline" size="sm">
-        <Pause class="w-4 h-4 mr-2" />
-        Pause
-      </Button>
+      <SidebarContent>
+        <SidebarGroup v-for="group in navItems" :key="group.title">
+          <SidebarGroupLabel>{{ group.title }}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem v-for="item in group.items" :key="item.title">
+                <SidebarMenuButton
+                  as-child
+                  :is-active="isActiveRoute(item.url)"
+                >
+                  <RouterLink :to="item.url">
+                    <component :is="item.icon" />
+                    <span>{{ item.title }}</span>
+                  </RouterLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-      <Button @click="resetAnimation" variant="secondary" size="sm">
-        <RotateCcw class="w-4 h-4 mr-2" />
-        Reset
-      </Button>
+        <!-- Help & Settings Group -->
+        <SidebarGroup class="mt-auto">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton as-child>
+                  <a href="#">
+                    <Settings />
+                    <span>Settings</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton as-child>
+                  <a href="#">
+                    <HelpCircle />
+                    <span>Help</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-      <div style="width: 1px; height: 24px; background-color: #e0e0e0;"></div>
+      <SidebarRail />
+    </Sidebar>
 
-      <!-- Tracking Mode Toggle Group -->
-      <ToggleGroup type="single" :value="selectedTrackingMode" @update:value="selectedTrackingMode = $event" size="sm" :disabled="isAnimating || !hasData">
-        <ToggleGroupItem :value="TrackingMode.ACTIVE_TRACK_TRACE" aria-label="Trace mode">
-          <MapPin class="w-4 h-4 mr-2" />
-          Trace
-        </ToggleGroupItem>
-        <ToggleGroupItem :value="TrackingMode.ACTIVE_TRACK_PARALLEL" aria-label="Parallel mode">
-          <ArrowLeftRight class="w-4 h-4 mr-2" />
-          Parallel
-        </ToggleGroupItem>
-        <ToggleGroupItem :value="TrackingMode.SPOTLIGHT" aria-label="Spotlight mode">
-          <Lightbulb class="w-4 h-4 mr-2" />
-          Spotlight
-        </ToggleGroupItem>
-        <ToggleGroupItem :value="TrackingMode.POINT_OF_INTEREST" aria-label="POI mode">
-          <Target class="w-4 h-4 mr-2" />
-          POI
-        </ToggleGroupItem>
-        <ToggleGroupItem :value="TrackingMode.FIXED_OVERVIEW" aria-label="Overview mode">
-          <Binoculars class="w-4 h-4 mr-2" />
-          Overview
-        </ToggleGroupItem>
-      </ToggleGroup>
-
-      <div style="width: 1px; height: 24px; background-color: #e0e0e0;"></div>
-
-      <Button @click="showTopView" :disabled="!bounds" variant="secondary" size="sm">
-        <ArrowUp class="w-4 h-4 mr-2" />
-        Top View
-      </Button>
-
-      <Button @click="showStartingView" :disabled="!hasData" variant="secondary" size="sm">
-        <Flag class="w-4 h-4 mr-2" />
-        Start View
-      </Button>
-
-      <!-- Progress bar -->
-      <div style="flex: 1; min-width: 150px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <Progress :model-value="animationProgress * 100" class="flex-1" style="min-width: 120px;" />
-          <span style="font-size: 12px; color: #666; min-width: 40px; text-align: right;">
-            {{ Math.round(animationProgress * 100) }}%
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
+    <SidebarInset>
+      <header class="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger class="-ml-1" />
+        <div class="h-4 w-px bg-border" />
+        <span class="text-sm font-medium">{{ route.name }}</span>
+      </header>
+      <main class="flex-1 overflow-hidden">
+        <RouterView />
+      </main>
+    </SidebarInset>
+  </SidebarProvider>
 </template>

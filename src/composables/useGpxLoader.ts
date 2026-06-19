@@ -94,6 +94,8 @@ export interface UseGpxLoaderReturn {
   createRouteGeoJson: () => GeoJSON.FeatureCollection;
   /** Clear loaded data */
   clearData: () => void;
+  /** Register callback to be called when GPX file is loaded */
+  onLoaded: (callback: (geojson: GeoJSON.FeatureCollection, analysis: PathAnalysis  ) => void) => void;
 }
 
 /**
@@ -107,6 +109,7 @@ export function useGpxLoader(): UseGpxLoaderReturn {
   const routeCoordinates = ref<Coordinate[]>([]);
   const bounds = ref<Bounds | null>(null);
   const totalDistance = ref(0);
+  let onLoadedCallback: ((geojson: GeoJSON.FeatureCollection, analysis: PathAnalysis) => void) | null = null;
 
   // Computed properties
   const startingCoordinate = computed<Coordinate | null>(() => {
@@ -149,6 +152,11 @@ export function useGpxLoader(): UseGpxLoaderReturn {
       bounds.value = analysis.bounds;
       totalDistance.value = analysis.totalDistance;
 
+      // Call onLoaded callback if registered
+      if (onLoadedCallback) {
+        onLoadedCallback(geojson, analysis);
+      }
+
       return analysis;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error loading GPX file';
@@ -189,6 +197,13 @@ export function useGpxLoader(): UseGpxLoaderReturn {
     error.value = null;
   }
 
+  /**
+   * Register a callback to be called when GPX file is loaded
+   */
+  function onLoaded(callback: (analysis: PathAnalysis) => void): void {
+    onLoadedCallback = callback;
+  }
+
   return {
     // State
     isLoading,
@@ -206,5 +221,6 @@ export function useGpxLoader(): UseGpxLoaderReturn {
     loadGpxFile,
     createRouteGeoJson,
     clearData,
+    onLoaded,
   };
 }
