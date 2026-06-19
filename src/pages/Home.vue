@@ -10,7 +10,7 @@ import { Play, Pause, RotateCcw, MapPin, ArrowLeftRight, Lightbulb, Target, Bino
 // Configuration
 // ============================================
 
-const MAPBOX_ACCESS_TOKEN = 'REMOVED';
+const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 const GPX_FILE_URL = '/Morning_Hike.gpx';
 const INITIAL_CENTER: [number, number] = [121.093642, 13.376087];
 

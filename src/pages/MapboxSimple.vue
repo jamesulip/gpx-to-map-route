@@ -129,7 +129,7 @@ onLoaded((e,analysis) => {
 
 <template>
     <MapboxMap ref="mapboxMapRef" style="height: 100vh"
-        access-token="REMOVED"
+        access-token=""
         map-style="mapbox://styles/mapbox/streets-v11" :center="mapCenter" :zoom="1">
 
         <MapboxMarker v-for="marker in photoMarkers" :key="marker.id" :lng-lat="marker.coordinates" :max-width="96"
